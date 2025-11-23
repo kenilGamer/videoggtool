@@ -262,6 +262,13 @@ export class LLMClient {
       jsonString = jsonString.substring(firstBrace, lastBrace + 1);
     }
     
+    // CRITICAL: Fix missing commas after array closing brackets BEFORE other processing
+    // This must be done early to prevent other patterns from interfering
+    // Pattern: ] "property" -> ], "property" (missing comma after array)
+    jsonString = jsonString.replace(/\]\s+"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '], "$1":');
+    // Pattern: }] "property" -> }], "property" (missing comma after array with object)
+    jsonString = jsonString.replace(/}\s*\]\s+"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '}], "$1":');
+    
     // Fix incomplete/broken string values that have newlines before closing quote
     // This must be done BEFORE the character-by-character processing
     
@@ -359,11 +366,19 @@ export class LLMClient {
     for (let pass = 0; pass < 3; pass++) {
       jsonString = jsonString
         // CRITICAL: Fix missing commas between objects in arrays
-        // Pattern 1: }} { -> }}, { (nested object closing followed by next array element)
+        // Pattern 1: }} { -> }}, { (nested object closing followed by next array element, no comma)
         .replace(/}}\s*{/g, '}}, {')
+        // Pattern 1b: }}, { (already has comma but might have spacing issues)
+        .replace(/}},\s*{/g, '}}, {')
         // Pattern 2: } { -> }, { (simple case, but avoid property assignments like "key": {...})
         // Only match when } is NOT preceded by : (which would be a property assignment)
         .replace(/([^:])\s*}\s*{/g, '$1}, {')
+        // Pattern 3: ] "key" -> ], "key" (missing comma after array closing bracket)
+        // Handle both with and without existing comma (normalize spacing)
+        .replace(/\]\s*,?\s*"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '], "$1":')
+        // Pattern 4: }] "key" -> }], "key" (missing comma after array with object closing)
+        // Handle both with and without existing comma (normalize spacing)
+        .replace(/}\s*\]\s*,?\s*"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '}], "$1":')
         // Pattern: "value"\n      "key" -> "value",\n      "key"
         .replace(/"\s*\n\s+"/g, '",\n      "')
         // Pattern: number\n      "key" -> number,\n      "key"
@@ -397,6 +412,14 @@ export class LLMClient {
     
     // Clean up trailing whitespace that might cause issues
     jsonString = jsonString
+      // Normalize spacing around closing braces followed by commas and opening braces
+      // Pattern: }}, { -> }}, { (ensure proper spacing)
+      .replace(/}}\s*,\s*{/g, '}}, {')
+      // CRITICAL: Fix missing comma after array closing bracket before property
+      // Pattern: ] "property" -> ], "property" (missing comma after array)
+      .replace(/\]\s+"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '], "$1":')
+      // Pattern: }] "property" -> }], "property" (missing comma after array with object)
+      .replace(/}\s*\]\s+"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '}], "$1":')
       // Remove excessive trailing whitespace after property values (but keep single spaces)
       .replace(/([":])\s{2,}/g, '$1 ')
       // Remove trailing whitespace before closing braces/brackets
