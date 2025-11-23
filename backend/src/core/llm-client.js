@@ -275,7 +275,12 @@ export class LLMClient {
     // Fix broken URLs and incomplete strings BEFORE character processing
     // Pattern 1: "https:\n      "property" -> "https://example.com/",\n      "property"
     // This handles the specific case where URLs are broken by newlines
-    jsonString = jsonString.replace(/"https:\s*\n\s+"([a-zA-Z_][a-zA-Z0-9_]*)":/g, '"https://example.com/",\n      "$1":');
+    // Match: "src": "https: followed by newline and then a property name
+    jsonString = jsonString.replace(/(":\s*"https:)\s*\n\s+"([a-zA-Z_][a-zA-Z0-9_]*)":/g, '$1//example.com/",\n      "$2":');
+    // Also handle case where there's no indentation after newline (more flexible whitespace)
+    jsonString = jsonString.replace(/(":\s*"https:)\s*\n\s*"([a-zA-Z_][a-zA-Z0-9_]*)":/g, '$1//example.com/",\n      "$2":');
+    // Pattern 1c: More aggressive - match any property after broken https:
+    jsonString = jsonString.replace(/"https:\s*\n\s*"([a-zA-Z_][a-zA-Z0-9_]*)":/g, '"https://example.com/",\n      "$1":');
     
     // Pattern 2: Any incomplete string value: "value\n      "next_key" -> "value",\n      "next_key"
     // Match: colon, quote, value (no quote), newline, whitespace, quote, property name
@@ -411,15 +416,24 @@ export class LLMClient {
     }
     
     // Clean up trailing whitespace that might cause issues
+    // Also do a final pass to fix any remaining missing commas
+    for (let finalPass = 0; finalPass < 3; finalPass++) {
+      jsonString = jsonString
+        // Normalize spacing around closing braces followed by commas and opening braces
+        // Pattern: }}, { -> }}, { (ensure proper spacing)
+        .replace(/}}\s*,\s*{/g, '}}, {')
+        // CRITICAL: Fix missing comma after array closing bracket before property
+        // Pattern: ] "property" -> ], "property" (missing comma after array)
+        // Handle both with and without existing comma (normalize)
+        .replace(/\]\s*,?\s*"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '], "$1":')
+        // Pattern: }] "property" -> }], "property" (missing comma after array with object)
+        // Handle both with and without existing comma (normalize)
+        .replace(/}\s*\]\s*,?\s*"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '}], "$1":')
+        // Pattern: } "property" -> }, "property" (missing comma after object before property)
+        .replace(/}\s+"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '}, "$1":');
+    }
+    
     jsonString = jsonString
-      // Normalize spacing around closing braces followed by commas and opening braces
-      // Pattern: }}, { -> }}, { (ensure proper spacing)
-      .replace(/}}\s*,\s*{/g, '}}, {')
-      // CRITICAL: Fix missing comma after array closing bracket before property
-      // Pattern: ] "property" -> ], "property" (missing comma after array)
-      .replace(/\]\s+"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '], "$1":')
-      // Pattern: }] "property" -> }], "property" (missing comma after array with object)
-      .replace(/}\s*\]\s+"([a-zA-Z_$][a-zA-Z0-9_$]*)"\s*:/g, '}], "$1":')
       // Remove excessive trailing whitespace after property values (but keep single spaces)
       .replace(/([":])\s{2,}/g, '$1 ')
       // Remove trailing whitespace before closing braces/brackets
@@ -477,7 +491,10 @@ export class LLMClient {
           const visibleLine = line.replace(/\t/g, '→').replace(/ /g, '·');
           console.error(`${lineNum.toString().padStart(3, ' ')} | ${visibleLine}`);
         });
-        console.error('     ' + ' '.repeat(Math.max(0, col)) + '^');
+        // Only show caret if col is valid
+        if (col >= 0) {
+          console.error('     ' + ' '.repeat(col) + '^');
+        }
         console.error('─'.repeat(80));
         
         // Also show the raw characters around the error
@@ -551,7 +568,10 @@ export class LLMClient {
             const posInArea = errorPos - start;
             const lineStart = problematicArea.lastIndexOf('\n', posInArea) + 1;
             const col = posInArea - lineStart;
-            console.error('     ' + ' '.repeat(col) + '^');
+            // Only show caret if col is valid (>= 0)
+            if (col >= 0) {
+              console.error('     ' + ' '.repeat(col) + '^');
+            }
           }
           
           throw new Error(`Failed to parse JSON from LLM response: ${error.message}`);
