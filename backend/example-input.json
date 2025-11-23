@@ -1,0 +1,39 @@
+{
+  "project_id": "my-video-001",
+  "video_settings": {
+    "resolution": "1920x1080",
+    "fps": 30,
+    "format": "mp4",
+    "codec": "libx264",
+    "crf": 18
+  },
+  "assets": [
+    {
+      "id": "img1",
+      "type": "image",
+      "src": "https://example.com/image1.jpg"
+    },
+    {
+      "id": "img2",
+      "type": "image",
+      "src": "https://example.com/image2.jpg"
+    },
+    {
+      "id": "music1",
+      "type": "audio",
+      "src": "https://example.com/music.mp3"
+    }
+  ],
+  "instructions": {
+    "style": "cinematic, smooth, emotional",
+    "camera_movement": "kenburns",
+    "transitions": "crossfade",
+    "target_duration": 12,
+    "voiceover": {
+      "type": "tts",
+      "language": "en",
+      "text": "Welcome to our cinematic story."
+    }
+  }
+}
+
