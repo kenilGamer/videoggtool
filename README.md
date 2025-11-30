@@ -61,8 +61,30 @@ Create a `.env` file in the `backend/` directory:
 
 ```env
 # LLM Provider Configuration
-LLM_PROVIDER=openai
+# Options: "ollama" (FREE local), "openai", or "anthropic"
+LLM_PROVIDER=ollama
+
+# Model name
+# For Ollama: llama3.2, llama3.1, gemma2:2b, etc.
+# For OpenAI: gpt-4o, gpt-4-turbo, etc.
+# For Anthropic: claude-3-5-sonnet-20241022, claude-3-opus, etc.
+LLM_MODEL=llama3.2
+
+# Temperature (0 = deterministic, higher = more creative)
+# IMPORTANT: Use 0 for JSON generation to avoid truncation/errors
+LLM_TEMPERATURE=0
+
+# Maximum tokens for LLM response (default: 4000)
+# Increase if your video specs are huge
+LLM_MAX_TOKENS=1024
+
+# Ollama Configuration (only needed if LLM_PROVIDER=ollama)
+OLLAMA_BASE_URL=http://localhost:11434
+
+# OpenAI Configuration (only needed if LLM_PROVIDER=openai)
 OPENAI_API_KEY=your_openai_api_key_here
+
+# Anthropic Configuration (only needed if LLM_PROVIDER=anthropic)
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 # FFmpeg Configuration
@@ -72,6 +94,13 @@ OUTPUT_DIR=./output
 # API Server Configuration
 PORT=3000
 ```
+
+### Using Ollama (FREE Local LLM)
+
+1. Install Ollama from https://ollama.ai
+2. Pull a model: `ollama pull llama3.2`
+3. Set `LLM_PROVIDER=ollama` and `LLM_TEMPERATURE=0` in your `.env` file
+4. The system will automatically connect to Ollama running on `localhost:11434`
 
 ## Usage
 

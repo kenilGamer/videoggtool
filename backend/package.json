@@ -8,7 +8,7 @@
     "videoggtool": "./src/cli/index.js"
   },
   "scripts": {
-    "dev": "node src/cli/index.js",
+    "dev": "node app.js",
     "start": "node src/api/server.js",
     "app": "node app.js",
     "watch": "nodemon app.js",
